@@ -9,10 +9,20 @@ git pull
 	downloads the remote and merges
 	can be used with --rebase to rebase instead
 git push
-
+	uploads commits to the remote
+	-u <remote> <branch> 
+	^ used when pushing a new branch for the first time
 git merge
 	combines everything from two branches
 git rebase
 	moves commits onto a different branch
 git fetch
 	downloads the remote
+git add
+	adds changes to be tracked for the next commit
+git status
+	checks status of changes
+git log
+	checks commit history
+git diff 
+	checks what has changed
