@@ -1,0 +1,18 @@
+git commit
+	makes a new commit
+git branch
+	makes a new branch
+git checkout
+	switches to a different branch
+	can be used with -b to check out a new branch
+git pull
+	downloads the remote and merges
+	can be used with --rebase to rebase instead
+git push
+
+git merge
+	combines everything from two branches
+git rebase
+	moves commits onto a different branch
+git fetch
+	downloads the remote
