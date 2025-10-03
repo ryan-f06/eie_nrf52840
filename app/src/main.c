@@ -56,32 +56,17 @@ int main(void) {
     if (ret3 < 0) {
         return ret3;
     }
-    gpio_pin_set_dt(&led0, 1);
-    gpio_pin_set_dt(&led1, 1);
-    gpio_pin_set_dt(&led2, 1);
-    gpio_pin_set_dt(&led3, 1);
+    gpio_pin_set_dt(&led0, 0);
+    gpio_pin_set_dt(&led1, 0);
+    gpio_pin_set_dt(&led2, 0);
+    gpio_pin_set_dt(&led3, 0);
     int i = 0;
     while (1) {
         gpio_pin_toggle_dt(&led0);
-        if (i == 0){
-            gpio_pin_toggle_dt(&led1);
-        }
-        if (i == 1) {
-            gpio_pin_toggle_dt(&led1);
-            gpio_pin_toggle_dt(&led2);
-        }
-        else if (i == 2) {
-            gpio_pin_toggle_dt(&led1);
-            gpio_pin_toggle_dt(&led2);
-        }
-        else if (i == 3) {
-            gpio_pin_toggle_dt(&led1);
-            gpio_pin_toggle_dt(&led2);
-            gpio_pin_toggle_dt(&led3);
-            i = 0;
-        }  
-        i++;
-        k_msleep(200);
+        gpio_pin_toggle_dt(&led1);
+        gpio_pin_toggle_dt(&led2);
+        gpio_pin_toggle_dt(&led3);
+        k_msleep(2000);
         
     }
 
