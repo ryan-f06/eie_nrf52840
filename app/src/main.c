@@ -22,9 +22,33 @@ int main(void) {
     return 0;
   } 
 
+  int b1 = 0, b2 = 0, b3 = 0, b4 = 0;
   while(1) {
     if (BTN_check_clear_pressed(BTN0)) {
+      b1++;
       LED_toggle(LED0);
+      if (b1 == 2) {
+        b1 = 0;
+        b2++;
+        LED_toggle(LED1);
+      }
+      if (b2 == 2) {
+        b2 = 0;
+        b3++;
+        LED_toggle(LED2);
+      }
+      if (b3 == 2) {
+        b3 = 0;
+        b4++;
+        LED_toggle(LED3);
+      }
+      if (b4 == 2) {
+        b4 = 0;
+      }
+      
+      
+      
+       
       printk("Button 0 pressed!\n");
     }
     k_msleep(SLEEP_MS);
