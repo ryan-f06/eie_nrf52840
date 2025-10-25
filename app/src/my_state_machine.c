@@ -148,12 +148,12 @@ static enum smf_state_result inputting_run(void* o) {
 static void waiting_entry(void* o) {
     printk("enterd combo: %d\n", state_object.combo);
     printk("correct combo: %d\n", state_object.correct_combo);
-    if (state_object.combo == state_object.correct_combo) {         
+    if (state_object.combo == state_object.correct_combo) { //on = correct    
         LED_set(LED0, LED_ON);
         LED_set(LED1, LED_ON);
         LED_set(LED2, LED_ON);
         LED_set(LED3, LED_ON);
-    } else {
+    } else { //on = incorrect 
         LED_set(LED0, LED_OFF);
         LED_set(LED1, LED_OFF);
         LED_set(LED2, LED_OFF);
