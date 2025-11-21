@@ -19,6 +19,8 @@
 #include <zephyr/settings/settings.h>
 #include <zephyr/sys/printk.h>
 
+#include "LED.h"
+
 /* MACROS --------------------------------------------------------------------------------------- */
 
 #define BLE_CUSTOM_SERVICE_UUID \
@@ -106,7 +108,15 @@ static ssize_t ble_custom_service_write(struct bt_conn* conn, const struct bt_ga
   for (uint16_t i = 0; i < len; i++) {
     printk("%s %02X '%c'", i == 0 ? "" : ",", value[offset + i], value[offset + i]);
   }
+
   printk("\n");
+
+  if (strcmp(value, "LED ON") == 0) {
+    LED_set(LED0, LED_ON);
+  }
+  else if (strcmp(value, "LED OFF") == 0) {
+    LED_set(LED0, LED_OFF);
+  }
 
   return len;
 }
@@ -133,6 +143,10 @@ int main(void) {
                       ble_scan_response_data, ARRAY_SIZE(ble_scan_response_data));
   if (err) {
     printk("Advertising failed to start (err %d)\n", err);
+    return 0;
+  }
+
+  if (0 > LED_init()) {
     return 0;
   }
 
