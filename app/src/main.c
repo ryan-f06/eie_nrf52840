@@ -14,6 +14,8 @@
 #include "LED.h"
 #include "lv_data_obj.h"
 
+#include "my_state_machine.h"
+
 #define SLEEP_MS 1
 
 static const struct device *display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
@@ -44,6 +46,7 @@ int main(void) {
     return 0;
   }
 
+
   lv_obj_t *image = lv_image_create(screen);
   lv_image_set_src(image, &circuit);
   lv_obj_align(image, LV_ALIGN_CENTER, 0, 0);
@@ -65,7 +68,15 @@ int main(void) {
   }
 
   display_blanking_off(display_dev);
+
+  state_machine_init();
+  
   while (1) {
+    int ret = state_machine_run();
+    if (0 > ret) {
+      return 0;
+    }
+
     lv_timer_handler();
     k_msleep(SLEEP_MS);
   }
