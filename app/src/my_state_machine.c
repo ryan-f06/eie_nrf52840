@@ -36,6 +36,8 @@ static void STATE_3_entry(void* o);
 static enum smf_state_result STATE_3_run(void* o);
 static void STATE_4_entry(void* o);
 static enum smf_state_result STATE_4_run(void* o);
+static void STATE_5_entry(void* o);
+static enum smf_state_result STATE_5_run(void* o);
 
 /**
  * Typedefs
@@ -44,18 +46,34 @@ enum state_machine_states {
     STATE_1,
     STATE_2,
     STATE_3,
-    STATE_4
+    STATE_4,
+		STATE_5
 };
+
+typedef struct {
+	char sym;
+	lv_obj_t *btn;
+} pos_data_t;
 
 typedef struct {
     // Context variable used by zephyr to track state machine state. Must be first
     struct smf_ctx ctx;
 
     uint16_t count;
-    uint16_t player; //1 = X, 2 = O
+    char player; //X, O
     uint16_t score1;
     uint16_t score2;
+		uint8_t win_flag;
+    lv_obj_t *score_label;
+		//char grid[3][3];
+		pos_data_t grid[3][3];
+    
 } state_object_t;
+
+typedef struct {
+	uint8_t x;
+	uint8_t y;
+} pos_t;
 
 /**
  * Local Variables
@@ -65,36 +83,81 @@ static const struct smf_state states[] = {
     [STATE_1] = SMF_CREATE_STATE(STATE_1_entry, STATE_1_run, NULL, NULL, NULL),
     [STATE_2] = SMF_CREATE_STATE(STATE_2_entry, STATE_2_run, NULL, NULL, NULL),
     [STATE_3] = SMF_CREATE_STATE(STATE_3_entry, STATE_3_run, NULL, NULL, NULL),
-    [STATE_4] = SMF_CREATE_STATE(STATE_4_entry, STATE_4_run, NULL, NULL, NULL)    
+    [STATE_4] = SMF_CREATE_STATE(STATE_4_entry, STATE_4_run, NULL, NULL, NULL),
+		[STATE_5] = SMF_CREATE_STATE(STATE_5_entry, STATE_5_run, NULL, NULL, NULL)    
 };
 
 static state_object_t state_object;
 
 void lv_button_callback(lv_event_t *event) {
-  lv_obj_t *data_obj = (lv_obj_t *)lv_event_get_user_data(event);
+
+	//lv_obj_t * widget = lv_event_get_target_obj(event);
+	lv_obj_t * btn = lv_event_get_target_obj(event);
+	lv_obj_t * label = lv_obj_get_child(btn, 0);
+
+  lv_obj_t *data_obj = lv_event_get_user_data(event);
+
+	pos_t *pos = lv_data_obj_get_data_ptr(data_obj);
+
+	
   char label_text[2];
-  if (state_object.player == 1){
+  if (state_object.player == 'X' && state_object.grid[pos->x][pos->y].sym == '\0'){
     snprintf(label_text, 2, "X");
-    lv_label_set_text(data_obj, label_text);
-    state_object.player = 2; //switch to O
+    lv_label_set_text(label, label_text);
+    //state_object.player = 2; //switch to O
+		state_object.grid[pos->x][pos->y].sym = 'X';
+		smf_set_state(SMF_CTX(&state_object), &states[STATE_5]);
   }
-  else if (state_object.player == 2) {
+  else if (state_object.player == 'O' && state_object.grid[pos->x][pos->y].sym == '\0') {
     snprintf(label_text, 2, "O");
-    lv_label_set_text(data_obj, label_text);
-    state_object.player = 1; //switch to X
+    lv_label_set_text(label, label_text);
+    //state_object.player = 1; //switch to X
+		state_object.grid[pos->x][pos->y].sym = 'O';
+		smf_set_state(SMF_CTX(&state_object), &states[STATE_5]);
   }
-  else if (state_object.player == 3) {
-    snprintf(label_text, 2, "-");
-    lv_label_set_text(data_obj, label_text);
-  }
+  // else if (state_object.player == 3) {
+  //   snprintf(label_text, 2, "-");
+  //   lv_label_set_text(label, label_text);
+  // }
   
 
+}
+
+int check(char player) {
+	if (state_object.grid[0][0].sym == player &&
+			state_object.grid[1][1].sym == player &&
+			state_object.grid[2][2].sym == player) {
+		return 1; // top left - bot right win
+	}
+		
+
+	if (state_object.grid[2][0].sym == player &&
+			state_object.grid[1][1].sym == player &&
+			state_object.grid[0][2].sym == player) {
+		return 1; // bot left - top right win
+	}
+
+	for (uint8_t i = 0; i < 3; i++){
+		if (state_object.grid[i][0].sym == player &&
+				state_object.grid[i][1].sym == player &&
+				state_object.grid[i][2].sym == player) {
+			return 1; // each row in a column win
+		}
+
+		if (state_object.grid[0][i].sym == player &&
+				state_object.grid[1][i].sym == player &&
+				state_object.grid[2][i].sym == player) {
+			return 1; // each column in a row win
+		}
+	}
+	return 0;
 }
 
 void state_machine_init() {
     state_object.count = 0;
     state_object.score1 = 0;
     state_object.score2 = 0;
+		state_object.win_flag = 0;
     state_object.player = 0;
 
     // if (!device_is_ready(display_dev)) { relocate later
@@ -127,35 +190,38 @@ static void STATE_1_entry(void* o) { // start up
     LED_set(LED3, LED_OFF);
     
     for (uint8_t i = 0; i < 9; i++) {
-    lv_obj_t *ui_btn = lv_button_create(screen);
-    // place the buttons in a 2x2 grid in the center of the screen
-    // matching the orientations of the LEDs on the board
-    if (i < 3) {
-      lv_obj_align(ui_btn, LV_ALIGN_TOP_LEFT, 70 * (i + 1), 50);
-    }
-    else if (i < 6) {
-      lv_obj_align(ui_btn, LV_ALIGN_TOP_LEFT, 70 * (i - 2), 105);
-    }
-    else {
-      lv_obj_align(ui_btn, LV_ALIGN_TOP_LEFT, 70 * (i - 5), 160);
-    }
-    lv_obj_t *button_label = lv_label_create(ui_btn);
-    char label_text[2];
-    snprintf(label_text, 2, "-");
-    lv_label_set_text(button_label, label_text);
-    lv_obj_align(button_label, LV_ALIGN_CENTER, 0, 0);
+			lv_obj_t *ui_btn = lv_button_create(screen);
+			// place the buttons in a 2x2 grid in the center of the screen
+			// matching the orientations of the LEDs on the board
+			if (i < 3) {
+				lv_obj_align(ui_btn, LV_ALIGN_TOP_LEFT, 70 * (i + 1), 50);
+			}
+			else if (i < 6) {
+				lv_obj_align(ui_btn, LV_ALIGN_TOP_LEFT, 70 * (i - 2), 105);
+			}
+			else {
+				lv_obj_align(ui_btn, LV_ALIGN_TOP_LEFT, 70 * (i - 5), 160);
+			}
+			lv_obj_t *button_label = lv_label_create(ui_btn);
+			char label_text[2];
+			snprintf(label_text, 2, "-");
+			lv_label_set_text(button_label, label_text);
+			lv_obj_align(button_label, LV_ALIGN_CENTER, 0, 0);
 
-    lv_obj_t *data_obj = button_label;
-    lv_obj_add_event_cb(ui_btn, lv_button_callback, LV_EVENT_CLICKED, data_obj);
+			pos_t pos = {.x = i % 3, .y = i / 3};
 
-    lv_obj_t *score1_label = lv_label_create(screen);
-    lv_label_set_text_fmt(score1_label, "Score: %d - %d", state_object.score1, state_object.score2);
-    lv_obj_align(score1_label, LV_ALIGN_TOP_LEFT, 10, 10);
+			lv_obj_t * data_obj = lv_data_obj_create_alloc_assign(ui_btn, &pos, sizeof(pos));
+			lv_obj_add_event_cb(ui_btn, lv_button_callback, LV_EVENT_CLICKED, data_obj);
 
-    //lv_obj_t *score2_label = lv_label_create(screen);
-    //lv_label_set_text_fmt(score2_label, "Score: %d", state_object.score2);
-    //lv_obj_align(score2_label, LV_ALIGN_TOP_RIGHT, -10, 10);
-  }
+			state_object.grid[pos.x][pos.y].btn = ui_btn;
+			state_object.grid[pos.x][pos.y].sym = '\0';
+		}
+
+		state_object.score_label = lv_label_create(screen);
+		lv_label_set_text_fmt(state_object.score_label, "Score: %d - %d", state_object.score1, state_object.score2);
+		lv_obj_align(state_object.score_label, LV_ALIGN_TOP_LEFT, 10, 10);
+
+  
 
   display_blanking_off(display_dev);
 }
@@ -183,22 +249,22 @@ static void STATE_2_entry(void* o) { //player 1 turn
     LED_set(LED1, LED_OFF);
     LED_set(LED2, LED_OFF);
     LED_set(LED3, LED_OFF);
-    state_object.player = 1; 
+    state_object.player = 'X'; 
 }
 
 static enum smf_state_result STATE_2_run(void* o) {
 
-    if (state_object.player == 2) {
-        smf_set_state(SMF_CTX(&state_object), &states[STATE_3]); //switch to O
-    }
+    // if (state_object.player == 'O') {
+    //     smf_set_state(SMF_CTX(&state_object), &states[STATE_3]); //switch to O
+    // }
     
     if (BTN_check_clear_pressed(BTN0)) {
         state_object.score1 += 1;
-        //lv_label_set_text_fmt(score1_label, "Score: %d", state_object.score1);
+        lv_label_set_text_fmt(state_object.score_label, "Score: %d - %d", state_object.score1, state_object.score2);
     }
     if (BTN_check_clear_pressed(BTN1)) {
         state_object.score2 += 1;
-        //lv_label_set_text_fmt(score2_label, "Score: %d", state_object.score2);
+        lv_label_set_text_fmt(state_object.score_label, "Score: %d - %d", state_object.score1, state_object.score2);
     }
     if (BTN_check_clear_pressed(BTN2)) {
         smf_set_state(SMF_CTX(&state_object), &states[STATE_4]); //clear
@@ -216,22 +282,22 @@ static void STATE_3_entry(void* o) { //player 2 turn
     LED_set(LED1, LED_ON);
     LED_set(LED2, LED_OFF);
     LED_set(LED3, LED_OFF);
-    state_object.player = 2;
+    state_object.player = 'O';
 }
 
 static enum smf_state_result STATE_3_run(void* o) {
 
-    if (state_object.player == 1) {
-        smf_set_state(SMF_CTX(&state_object), &states[STATE_2]); //switch to X
-    }
+    // if (state_object.player == 'X') {
+    //     smf_set_state(SMF_CTX(&state_object), &states[STATE_2]); //switch to X
+    // }
     
     if (BTN_check_clear_pressed(BTN0)) {
         state_object.score1 += 1;
-        //lv_label_set_text_fmt(score1_label, "Score: %d", state_object.score1);
+        lv_label_set_text_fmt(state_object.score_label, "Score: %d - %d", state_object.score1, state_object.score2);
     }
     if (BTN_check_clear_pressed(BTN1)) {
         state_object.score2 += 1;
-        //lv_label_set_text_fmt(score2_label, "Score: %d", state_object.score2);
+        lv_label_set_text_fmt(state_object.score_label, "Score: %d - %d", state_object.score1, state_object.score2);
     }
     if (BTN_check_clear_pressed(BTN2)) {
         smf_set_state(SMF_CTX(&state_object), &states[STATE_4]); //clear
@@ -249,7 +315,21 @@ static void STATE_4_entry(void* o) { //clear
     LED_set(LED1, LED_ON);
     LED_set(LED2, LED_ON);
     LED_set(LED3, LED_ON);
-    state_object.player = 3;
+
+		state_object.player = 3;
+
+		char label_text[2];
+		snprintf(label_text, 2, "-");
+		lv_obj_t * label;
+
+    uint8_t i, j;
+		for (i = 0; i < 3; i++) {
+			for (j = 0; j < 3; j++) {
+				state_object.grid[i][j].sym = '\0';
+				label = lv_obj_get_child(state_object.grid[i][j].btn, 0);
+    		lv_label_set_text(label, label_text);
+			}
+		}
 }
 
 static enum smf_state_result STATE_4_run(void* o) {
@@ -265,6 +345,47 @@ static enum smf_state_result STATE_4_run(void* o) {
     }
     if (BTN_check_clear_pressed(BTN3)) { 
         smf_set_state(SMF_CTX(&state_object), &states[STATE_2]);
+    }
+
+    return SMF_EVENT_HANDLED;
+}
+
+
+static void STATE_5_entry(void* o) { //check
+    printk("STATE_5\n");
+    LED_set(LED0, LED_OFF);
+    LED_set(LED1, LED_OFF);
+    LED_set(LED2, LED_ON);
+    LED_set(LED3, LED_ON);
+
+		if (check(state_object.player)) {
+			if (state_object.player == 'X'){
+				state_object.score1 += 1;
+			}
+			else {
+				state_object.score2 += 1;
+			}
+			lv_label_set_text_fmt(state_object.score_label, "Score: %d - %d", state_object.score1, state_object.score2);
+			state_object.win_flag = 1;
+		}
+		
+}
+
+static enum smf_state_result STATE_5_run(void* o) {
+
+		if (state_object.win_flag) {
+			if (BTN_check_clear_pressed(BTN2) || BTN_check_clear_pressed(BTN3)) {
+        state_object.win_flag = 0;  
+				smf_set_state(SMF_CTX(&state_object), &states[STATE_4]); //clear
+    	}
+    }
+	
+		else if (state_object.player == 'X') {
+        smf_set_state(SMF_CTX(&state_object), &states[STATE_3]); //switch to X
+    }
+
+		else if (state_object.player == 'O') {
+        smf_set_state(SMF_CTX(&state_object), &states[STATE_2]); //switch to X
     }
 
     return SMF_EVENT_HANDLED;
