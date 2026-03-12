@@ -21,7 +21,9 @@
 static const struct device *display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
 static lv_obj_t *screen = NULL;
 
-extern const lv_image_dsc_t circuit;
+static lv_obj_t *start_screen = NULL;
+
+extern const lv_image_dsc_t start_img;
 extern const lv_image_dsc_t grid;
 
 
@@ -30,6 +32,7 @@ extern const lv_image_dsc_t grid;
  */
 static void STATE_1_entry(void* o);
 static enum smf_state_result STATE_1_run(void* o);
+static void STATE_1_exit(void* o);
 static void STATE_2_entry(void* o);
 static enum smf_state_result STATE_2_run(void* o);
 static void STATE_3_entry(void* o);
@@ -65,7 +68,6 @@ typedef struct {
     uint16_t score2;
 		uint8_t win_flag;
     lv_obj_t *score_label;
-		//char grid[3][3];
 		pos_data_t grid[3][3];
     
 } state_object_t;
@@ -80,7 +82,7 @@ typedef struct {
  */
 
 static const struct smf_state states[] = {
-    [STATE_1] = SMF_CREATE_STATE(STATE_1_entry, STATE_1_run, NULL, NULL, NULL),
+    [STATE_1] = SMF_CREATE_STATE(STATE_1_entry, STATE_1_run, STATE_1_exit, NULL, NULL),
     [STATE_2] = SMF_CREATE_STATE(STATE_2_entry, STATE_2_run, NULL, NULL, NULL),
     [STATE_3] = SMF_CREATE_STATE(STATE_3_entry, STATE_3_run, NULL, NULL, NULL),
     [STATE_4] = SMF_CREATE_STATE(STATE_4_entry, STATE_4_run, NULL, NULL, NULL),
@@ -91,35 +93,29 @@ static state_object_t state_object;
 
 void lv_button_callback(lv_event_t *event) {
 
-	//lv_obj_t * widget = lv_event_get_target_obj(event);
 	lv_obj_t * btn = lv_event_get_target_obj(event);
 	lv_obj_t * label = lv_obj_get_child(btn, 0);
 
-  lv_obj_t *data_obj = lv_event_get_user_data(event);
+    lv_obj_t *data_obj = lv_event_get_user_data(event);
 
 	pos_t *pos = lv_data_obj_get_data_ptr(data_obj);
 
 	
   char label_text[2];
-  if (state_object.player == 'X' && state_object.grid[pos->x][pos->y].sym == '\0'){
+  if (state_object.player == 'X' && state_object.grid[pos->x][pos->y].sym == '\0' && !state_object.win_flag){
     snprintf(label_text, 2, "X");
     lv_label_set_text(label, label_text);
     //state_object.player = 2; //switch to O
 		state_object.grid[pos->x][pos->y].sym = 'X';
 		smf_set_state(SMF_CTX(&state_object), &states[STATE_5]);
   }
-  else if (state_object.player == 'O' && state_object.grid[pos->x][pos->y].sym == '\0') {
+  else if (state_object.player == 'O' && state_object.grid[pos->x][pos->y].sym == '\0' && !state_object.win_flag) {
     snprintf(label_text, 2, "O");
     lv_label_set_text(label, label_text);
     //state_object.player = 1; //switch to X
 		state_object.grid[pos->x][pos->y].sym = 'O';
 		smf_set_state(SMF_CTX(&state_object), &states[STATE_5]);
   }
-  // else if (state_object.player == 3) {
-  //   snprintf(label_text, 2, "-");
-  //   lv_label_set_text(label, label_text);
-  // }
-  
 
 }
 
@@ -157,22 +153,16 @@ void state_machine_init() {
     state_object.count = 0;
     state_object.score1 = 0;
     state_object.score2 = 0;
-		state_object.win_flag = 0;
+	state_object.win_flag = 0;
     state_object.player = 0;
 
-    // if (!device_is_ready(display_dev)) { relocate later
-    //     return 0;
-    // }
-    // screen = lv_screen_active();
-    // if (screen == NULL) {
-    //     return 0;
-    // }
     device_is_ready(display_dev);
-    screen = lv_screen_active();
 
-    lv_obj_t *image = lv_image_create(screen);
-    lv_image_set_src(image, &grid);
-    lv_obj_align(image, LV_ALIGN_CENTER, 0, 0);
+    start_screen = lv_screen_active();
+
+    lv_obj_t *start_image = lv_image_create(start_screen);
+    lv_image_set_src(start_image, &start_img);
+    lv_obj_align(start_image, LV_ALIGN_CENTER, 0, 0);
 
     smf_set_initial(SMF_CTX(&state_object), &states[STATE_1]);
 }
@@ -188,7 +178,38 @@ static void STATE_1_entry(void* o) { // start up
     LED_set(LED1, LED_OFF);
     LED_set(LED2, LED_OFF);
     LED_set(LED3, LED_OFF);
+
+    lv_obj_t * start_label = lv_label_create(start_screen);
+	lv_label_set_text_fmt(start_label, "Tic Tac Toe");
+	lv_obj_align(start_label, LV_ALIGN_TOP_MID, 0, 10);
+
+    lv_obj_t * start_label_2 = lv_label_create(start_screen);
+	lv_label_set_text_fmt(start_label_2, "Press Any Button");
+	lv_obj_align(start_label_2, LV_ALIGN_BOTTOM_MID, 0, -10);
+
+    display_blanking_off(display_dev);
+}
+
+static enum smf_state_result STATE_1_run(void* o) {
     
+    if (BTN_check_clear_pressed(BTN0) || BTN_check_clear_pressed(BTN1) || 
+    BTN_check_clear_pressed(BTN2) || BTN_check_clear_pressed(BTN3)) {
+        smf_set_state(SMF_CTX(&state_object), &states[STATE_2]);
+    }
+
+    return SMF_EVENT_HANDLED;
+}
+
+static void STATE_1_exit(void* o) { // start up
+    
+    lv_obj_clean(start_screen);
+
+    screen = lv_screen_active();
+
+    lv_obj_t *image = lv_image_create(screen);
+    lv_image_set_src(image, &grid);
+    lv_obj_align(image, LV_ALIGN_CENTER, 0, 0);
+
     for (uint8_t i = 0; i < 9; i++) {
 			lv_obj_t *ui_btn = lv_button_create(screen);
 			// place the buttons in a 2x2 grid in the center of the screen
@@ -221,26 +242,7 @@ static void STATE_1_entry(void* o) { // start up
 		lv_label_set_text_fmt(state_object.score_label, "Score: %d - %d", state_object.score1, state_object.score2);
 		lv_obj_align(state_object.score_label, LV_ALIGN_TOP_LEFT, 10, 10);
 
-  
-
   display_blanking_off(display_dev);
-}
-
-static enum smf_state_result STATE_1_run(void* o) {
-    
-    if (BTN_check_clear_pressed(BTN0)) {
-        smf_set_state(SMF_CTX(&state_object), &states[STATE_2]);
-    }
-    if (BTN_check_clear_pressed(BTN1)) {
-        smf_set_state(SMF_CTX(&state_object), &states[STATE_2]);
-    }
-    if (BTN_check_clear_pressed(BTN2)) {
-        smf_set_state(SMF_CTX(&state_object), &states[STATE_2]);
-    }
-    if (BTN_check_clear_pressed(BTN3)) { 
-        smf_set_state(SMF_CTX(&state_object), &states[STATE_2]);
-    }
-    return SMF_EVENT_HANDLED;
 }
 
 static void STATE_2_entry(void* o) { //player 1 turn
@@ -253,10 +255,6 @@ static void STATE_2_entry(void* o) { //player 1 turn
 }
 
 static enum smf_state_result STATE_2_run(void* o) {
-
-    // if (state_object.player == 'O') {
-    //     smf_set_state(SMF_CTX(&state_object), &states[STATE_3]); //switch to O
-    // }
     
     if (BTN_check_clear_pressed(BTN0)) {
         state_object.score1 += 1;
@@ -334,18 +332,7 @@ static void STATE_4_entry(void* o) { //clear
 
 static enum smf_state_result STATE_4_run(void* o) {
 
-    if (BTN_check_clear_pressed(BTN0)) {
-        smf_set_state(SMF_CTX(&state_object), &states[STATE_2]);
-    }
-    if (BTN_check_clear_pressed(BTN1)) {
-        smf_set_state(SMF_CTX(&state_object), &states[STATE_2]);
-    }
-    if (BTN_check_clear_pressed(BTN2)) {
-        smf_set_state(SMF_CTX(&state_object), &states[STATE_2]);
-    }
-    if (BTN_check_clear_pressed(BTN3)) { 
-        smf_set_state(SMF_CTX(&state_object), &states[STATE_2]);
-    }
+    smf_set_state(SMF_CTX(&state_object), &states[STATE_2]);
 
     return SMF_EVENT_HANDLED;
 }
@@ -373,18 +360,18 @@ static void STATE_5_entry(void* o) { //check
 
 static enum smf_state_result STATE_5_run(void* o) {
 
-		if (state_object.win_flag) {
-			if (BTN_check_clear_pressed(BTN2) || BTN_check_clear_pressed(BTN3)) {
-        state_object.win_flag = 0;  
-				smf_set_state(SMF_CTX(&state_object), &states[STATE_4]); //clear
+	if (state_object.win_flag) {
+		if (BTN_check_clear_pressed(BTN2) || BTN_check_clear_pressed(BTN3)) {
+            state_object.win_flag = 0;  
+			smf_set_state(SMF_CTX(&state_object), &states[STATE_4]); //clear
     	}
     }
 	
-		else if (state_object.player == 'X') {
+	else if (state_object.player == 'X') {
         smf_set_state(SMF_CTX(&state_object), &states[STATE_3]); //switch to X
     }
 
-		else if (state_object.player == 'O') {
+	else if (state_object.player == 'O') {
         smf_set_state(SMF_CTX(&state_object), &states[STATE_2]); //switch to X
     }
 

@@ -12,6 +12,6 @@ project(app LANGUAGES C)
 zephyr_include_directories(src)
 
 target_sources(app PRIVATE src/main.c)
-target_sources(app PRIVATE src/circuit.c)
+target_sources(app PRIVATE src/start_img.c)
 target_sources(app PRIVATE src/grid.c)
 target_sources(app PRIVATE src/my_state_machine.c)
