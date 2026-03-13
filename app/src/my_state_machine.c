@@ -256,18 +256,7 @@ static void STATE_2_entry(void* o) { //player 1 turn
 
 static enum smf_state_result STATE_2_run(void* o) {
     
-    if (BTN_check_clear_pressed(BTN0)) {
-        state_object.score1 += 1;
-        lv_label_set_text_fmt(state_object.score_label, "Score: %d - %d", state_object.score1, state_object.score2);
-    }
-    if (BTN_check_clear_pressed(BTN1)) {
-        state_object.score2 += 1;
-        lv_label_set_text_fmt(state_object.score_label, "Score: %d - %d", state_object.score1, state_object.score2);
-    }
-    if (BTN_check_clear_pressed(BTN2)) {
-        smf_set_state(SMF_CTX(&state_object), &states[STATE_4]); //clear
-    }
-    if (BTN_check_clear_pressed(BTN3)) { 
+    if (BTN_check_clear_pressed(BTN2) || BTN_check_clear_pressed(BTN3)) {
         smf_set_state(SMF_CTX(&state_object), &states[STATE_4]); //clear
     }
 
@@ -284,23 +273,8 @@ static void STATE_3_entry(void* o) { //player 2 turn
 }
 
 static enum smf_state_result STATE_3_run(void* o) {
-
-    // if (state_object.player == 'X') {
-    //     smf_set_state(SMF_CTX(&state_object), &states[STATE_2]); //switch to X
-    // }
     
-    if (BTN_check_clear_pressed(BTN0)) {
-        state_object.score1 += 1;
-        lv_label_set_text_fmt(state_object.score_label, "Score: %d - %d", state_object.score1, state_object.score2);
-    }
-    if (BTN_check_clear_pressed(BTN1)) {
-        state_object.score2 += 1;
-        lv_label_set_text_fmt(state_object.score_label, "Score: %d - %d", state_object.score1, state_object.score2);
-    }
-    if (BTN_check_clear_pressed(BTN2)) {
-        smf_set_state(SMF_CTX(&state_object), &states[STATE_4]); //clear
-    }
-    if (BTN_check_clear_pressed(BTN3)) { 
+    if (BTN_check_clear_pressed(BTN2) || BTN_check_clear_pressed(BTN3)) {
         smf_set_state(SMF_CTX(&state_object), &states[STATE_4]); //clear
     }
 
